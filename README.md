@@ -38,6 +38,10 @@ Macro-F1 is used instead of plain accuracy because the classes are imbalanced, a
 
 **An honest note on the model choice.** Logistic regression scored 0.665 and XGBoost scored 0.677, a difference of only about 0.01. So a simple linear model captures almost all of the available signal, and XGBoost adds only a small gain here. XGBoost is kept as the main model because it handles feature interactions and pairs naturally with SHAP, but the honest reading is that the extra complexity buys very little on this data.
 
+The confusion matrix below shows the same test-set result as a picture: how many systems the model got right and wrong in each class. It makes the pattern from the table easy to see at a glance, that the model catches most systems that do have PFAS, and misses more of the ones that do not.
+
+![Confusion matrix for the XGBoost model on the test set](confusion_matrix.png)
+
 ## What Is Linked to PFAS Detection
 
 ![SHAP feature importance](shap_drivers.png)
