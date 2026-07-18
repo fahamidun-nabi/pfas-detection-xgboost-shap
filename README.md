@@ -1,73 +1,75 @@
 # Predicting PFAS Detection in US Drinking Water (XGBoost + SHAP)
 
-A machine learning analysis of EPA national monitoring data, predicting whether a public water system has detectable PFAS, identifying what drives detection, and examining which specific PFAS chemicals dominate where.
+A machine learning analysis of EPA national monitoring data. It predicts whether a public water system has detectable PFAS, looks at what is linked to detection, and examines which specific PFAS chemicals show up most and where.
 
 ## Goal
 
-Predict whether a US public water system has detectable PFAS based on its size, location, and water source, and use SHAP to understand which factors actually drive PFAS occurrence.
+Predict whether a US public water system has detectable PFAS from its size, location, water source, and sampling year, and use SHAP to understand which factors are most associated with detection.
 
 ## Data
 
-EPA UCMR 5 (Fifth Unregulated Contaminant Monitoring Rule), the agency's national PFAS monitoring program covering 2023 to 2025. The raw file contains 1.93 million individual measurements across 10,299 public water systems, tested for 29 PFAS chemicals plus lithium.
+EPA UCMR 5 (the Fifth Unregulated Contaminant Monitoring Rule), the agency's national PFAS monitoring program covering 2023 to 2025. The raw file holds 1.93 million individual measurements across 10,299 public water systems, tested for 29 PFAS chemicals plus lithium.
 
 ## Method
 
-1. Marked each measurement as detect or non-detect from the analytical result sign.
-2. Collapsed measurements to one verdict per water system: a system counts as PFAS-detected if any of its samples, for any chemical, came back positive.
-3. Checked every categorical column for invalid entries and removed 225 systems with non-state location codes (numeric codes and US territories), keeping the 50 states plus DC.
-4. Built predictors from system size, state, water source type, and sampling year, one-hot encoded for modeling.
-5. Trained an XGBoost classifier on an 80/20 train-test split.
-
-### Why XGBoost
-
-The data is tabular, a mix of categorical features like state and water type. XGBoost is the standard choice for this kind of problem because it captures non-linear relationships and interactions between features, for example, water type and system size may matter differently in combination than either does alone, something a simpler model like logistic regression cannot easily represent. It is also the current standard in applied data science for tabular classification, and it pairs naturally with SHAP, which was built with tree-based models in mind. A simpler linear model was not used as the primary model because the underlying relationship between system characteristics and PFAS detection is unlikely to be purely linear, and this was confirmed in an earlier project in this portfolio, where a random forest meaningfully outperformed logistic regression on a similar tabular classification task.
-6. Used SHAP to interpret which features drive the model's predictions, and verified the key directions against raw detection rates.
-7. Separately analyzed which PFAS chemicals are most frequently detected nationally and by region.
+1. Marked each measurement as a detect or a non-detect from the analytical result sign.
+2. Reduced the measurements to one verdict per water system: a system counts as PFAS-detected if any of its samples, for any chemical, came back positive.
+3. Checked every category column for invalid entries and removed 225 systems with non-state location codes (numeric codes and US territories), keeping the 50 states plus DC. This left 10,074 systems.
+4. Built predictors from system size, state, water source type, and sampling year, then one-hot encoded them for modeling.
+5. Trained an XGBoost classifier on an 80/20 train and test split.
+6. Checked the model with 5-fold cross-validation. The first run gave unstable, low scores because the data is sorted by system ID, which groups states together, so the default unshuffled folds each saw a different set of states. Switching to shuffled, stratified folds fixed this and gave a stable, trustworthy estimate. This step is kept in the notebook because spotting and fixing that issue is part of the analysis.
+7. Compared XGBoost against a simple baseline and a logistic regression, so the choice of a more complex model is tested rather than assumed.
+8. Used SHAP to see which features drive the model's predictions, and checked those directions against the raw detection rates in the data.
+9. Separately looked at which PFAS chemicals are detected most often, nationally and by region.
 
 ## Results
 
-60 percent of tested water systems had detectable PFAS, a baseline that any model has to beat. The XGBoost model reached:
+About 60% of tested systems had detectable PFAS, so that is the number any model has to beat. The three models compared like this:
 
-| Metric | Value |
-|--------|-------|
-| Accuracy | 0.705 |
-| Baseline (always predict PFAS) | 0.60 |
-| PFAS-detected recall | 0.82 |
-| No-PFAS recall | 0.53 |
+| Model | CV macro-F1 | Test accuracy | Precision (PFAS) | Recall (PFAS) |
+|-------|-------------|---------------|------------------|---------------|
+| Baseline (always predict PFAS) | 0.37 | 0.60 | 0.60 | 1.00 |
+| Logistic Regression | 0.665 | 0.688 | 0.725 | 0.772 |
+| XGBoost | 0.677 | 0.705 | 0.724 | 0.820 |
 
-The model beats baseline by about 10 points, showing system size, location, and water source carry real signal about PFAS occurrence, though prediction from these characteristics alone is far from perfect.
+The headline number is the cross-validated macro-F1 of about **0.68 (plus or minus 0.01)** for XGBoost, and it matches the held-out test score of 0.68. When the cross-validation score and the test score agree like this, it is a good sign that the number is real and not the result of a lucky split.
 
-## What Drives PFAS Detection
+Macro-F1 is used instead of plain accuracy because the classes are imbalanced, and macro-F1 gives both classes equal weight. On that measure the model (0.68) is well clear of the baseline (0.37), which is a bigger and more honest gap than a simple accuracy comparison would suggest.
+
+**An honest note on the model choice.** Logistic regression scored 0.665 and XGBoost scored 0.677, a difference of only about 0.01. So a simple linear model captures almost all of the available signal, and XGBoost adds only a small gain here. XGBoost is kept as the main model because it handles feature interactions and pairs naturally with SHAP, but the honest reading is that the extra complexity buys very little on this data.
+
+## What Is Linked to PFAS Detection
 
 ![SHAP feature importance](shap_drivers.png)
 
-SHAP and direct rate comparisons agree on the main drivers:
+SHAP and the raw detection rates agree on the main patterns:
 
 ![PFAS rate by water source type](pfas_by_water_type.png)
 
-Groundwater and mixed-source systems show higher PFAS rates (66 and 74 percent) than surface water systems (51 percent). This is consistent with PFAS being persistent compounds that accumulate in groundwater rather than flushing through surface systems.
+Groundwater and mixed-source systems show higher PFAS rates (66% and 74%) than surface water systems (51%). This fits the idea that PFAS are long-lasting compounds that build up in groundwater rather than washing through surface systems.
 
 ![PFAS rate by EPA region](pfas_by_region.png)
 
-PFAS detection varies sharply by region, from 38 percent in Region 10 (Pacific Northwest) to over 80 percent in Regions 6 and 7 (south-central and central US).
+Detection varies a lot by region, from 38% in Region 10 (Pacific Northwest) to over 80% in Regions 6 and 7 (south-central and central US).
 
 ![PFAS rate by state](pfas_by_state_map.png)
 
-Larger water systems also show consistently higher PFAS rates than smaller ones.
+Larger water systems also show higher PFAS rates than smaller ones.
 
 ## Which PFAS, and Where
 
-Beyond whether PFAS is present, the data shows which specific chemicals dominate. Nationally, the most frequently detected are PFPeA, PFHxA, PFBS, and PFBA, with PFOS and PFOA, the two most studied PFAS, both in the top six.
+Beyond whether PFAS is present, the data shows which chemicals show up most. Nationally, the most frequently detected are PFPeA, PFHxA, PFBS, and PFBA, with PFOS and PFOA, the two most studied PFAS, both in the top six.
 
-The dominant chemical also varies by region: PFOA leads in the northeast, PFBA across the central US, and PFBS and PFHxS elsewhere. This suggests different regions have different contamination sources, since different PFAS are associated with different industrial and firefighting foam uses. Note that "most frequently detected" reflects how often a chemical was reported, not necessarily its concentration or health risk.
+The leading chemical also changes by region: PFOA in the northeast, PFBA across the central US, and PFBS and PFHxS elsewhere. This points to different contamination sources in different regions, since different PFAS come from different industrial and firefighting-foam uses. Note that "most frequently detected" means how often a chemical was reported, not its concentration or its health risk.
 
 ## Honest Limitations
 
-- The model uses only four system-level characteristics. Richer predictors, such as actual population served, proximity to industrial sites, or land use, would likely improve prediction but were not available in this file.
-- Findings are associations, not causes. A state or region having higher PFAS does not mean location causes contamination; it likely reflects industrial history and testing patterns.
-- Adding sampling year improved accuracy by only about one point, indicating the model is close to its ceiling given the available features, the limit is the data, not the model.
-- "Most frequently detected" PFAS is a count of detections, not a measure of concentration or risk.
-- The lithium contaminant was initially included by mistake in an early version of the chemical analysis and was caught and excluded; UCMR 5 monitors 29 PFAS plus lithium, and lithium is not a PFAS.
+- The model uses only four broad system-level features. Richer inputs, such as actual population served, distance to industrial sites, or land use, would likely help but were not in this file.
+- A simple logistic regression nearly matched XGBoost, so the signal that these features carry is mostly simple. The model works, but the features have a limited ceiling.
+- The findings are associations, not causes. A region having more PFAS does not mean the location causes contamination; it more likely reflects industrial history and testing patterns.
+- Adding sampling year improved the score by only about one point, another sign the model is near its ceiling given the available features. The limit is the data, not the model.
+- "Most frequently detected" counts detections; it is not a measure of concentration or risk.
+- Lithium was included by mistake in an early version of the chemical analysis, then caught and removed. UCMR 5 monitors 29 PFAS plus lithium, and lithium is not a PFAS.
 
 ## Tools
 
@@ -75,4 +77,4 @@ Python, pandas, XGBoost, SHAP, scikit-learn, matplotlib, plotly (Google Colab)
 
 ## Acknowledgment
 
-This project was completed with guidance from Claude (Anthropic) for code explanation, debugging support, and technical concepts during development. All analysis decisions, data interpretation, and verification were conducted by the author.
+This project was completed with guidance from Claude (Anthropic) for code explanation, debugging support, and technical concepts during development. All analysis decisions, data interpretation, and verification were done by the author, who can explain each step of the notebook.
