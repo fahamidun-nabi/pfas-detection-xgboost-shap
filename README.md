@@ -1,6 +1,6 @@
 # Predicting PFAS Detection in US Drinking Water (XGBoost + SHAP)
 
-[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/10G7PL-G92APu4W8UZ7GIpUR-SttVbi4N?usp=sharing)
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](PASTE_YOUR_COLAB_SHARE_LINK_HERE)
 
 ## How to Run
 
@@ -10,7 +10,7 @@
 
 ## Data Source
 
-The notebook fetches the raw EPA UCMR 5 occurrence data directly from epa.gov at run time (see the first cell). The original dataset page is here: [EPA UCMR 5 Occurrence Data](https://www.epa.gov/dwucmr/fifth-unregulated-contaminant-monitoring-rule)
+The notebook fetches the raw EPA UCMR 5 occurrence data directly from epa.gov at run time (see the first cell), so no manual download is needed to run it. The direct file it downloads is the [UCMR 5 occurrence data zip file](https://www.epa.gov/system/files/other-files/2023-08/ucmr5-occurrence-data.zip). For background on the program, or to browse the data another way, see EPA's [Occurrence Data from the Unregulated Contaminant Monitoring Rule](https://epa.gov/dwucmr/occurrence-data-unregulated-contaminant-monitoring-rule) page.
 
 A machine learning analysis of EPA national monitoring data. It predicts whether a public water system has detectable PFAS, looks at what is linked to detection, and examines which specific PFAS chemicals show up most and where.
 
